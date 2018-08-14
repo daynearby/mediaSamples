@@ -1,17 +1,19 @@
 package com.github.daynearby.javacvsamples
 
 import android.content.pm.PackageManager
+import android.hardware.Camera
+import android.hardware.Camera.*
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.HandlerThread
 import android.support.annotation.RequiresApi
 import android.support.constraint.ConstraintLayout
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
+import android.view.Surface
 import android.view.View
+import android.view.WindowManager
 
 
 /**
@@ -29,10 +31,15 @@ public class RecordActivity : AppCompatActivity() {
                     "android.permission.RECORD_AUDIO",
                     "android.permission.WRITE_EXTERNAL_STORAGE")
     val mRequestCode: Int = 11
-    var camerView: CamerView? = null
+    var cameraDevice: Camera? = null
+    var cameraView: CameraView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
+        }
         setContentView(R.layout.acty_record)
 
         findViewById<View>(R.id.btn_ctrl).setOnClickListener { }
@@ -40,17 +47,18 @@ public class RecordActivity : AppCompatActivity() {
             getPermission()
         }
 
+
     }
 
     override fun onResume() {
         super.onResume()
-        camerView?.onResume()
+        // cameraView?.onResume()
 
     }
 
 
     override fun onPause() {
-        camerView?.onPause()
+        cameraView?.onPause()
         super.onPause()
     }
 
@@ -88,10 +96,48 @@ public class RecordActivity : AppCompatActivity() {
      * add cameraView
      */
     fun addTextureView() {
-        camerView = CamerView(this)
-        findViewById<ConstraintLayout>(R.id.record_constain).addView(camerView, 0)
-        //camerView?.onResume()
+        val numberOfCameras = getNumberOfCameras()
+        val cameraInfo = CameraInfo()
+        var cameraId = -1
+        var rotation = 0
+        val orientation = windowManager.defaultDisplay.orientation
+        var degrees = -1
+        var result = -1
+        when (orientation) {
+            Surface.ROTATION_0 -> degrees = 0
+            Surface.ROTATION_90 -> degrees = 90
+            Surface.ROTATION_180 -> degrees = 180
+            Surface.ROTATION_270 -> degrees = 270
+        }
+        for (i in 0 until numberOfCameras) {
+            getCameraInfo(i, cameraInfo)
+            if (cameraInfo.facing == CameraInfo.CAMERA_FACING_BACK) {
+                cameraId = i
+                result = (cameraInfo.orientation - degrees + 360) % 360;
+                break
+            }/* else {
+                result = (cameraInfo.orientation + degrees) % 360;
+                result = (360 - result) % 360;  // compensate the mirror
+            }*/
+        }
+
+        cameraDevice = Camera.open(cameraId);
+        cameraDevice?.setDisplayOrientation(result)
+        cameraView = CameraView(this, cameraDevice, cameraId)
+        findViewById<ConstraintLayout>(R.id.record_constain).addView(cameraView, 0)
+        cameraView?.onResume()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        if (cameraView != null) {
+            cameraView?.stopPreview();
+        }
 
+        if (cameraDevice != null) {
+            cameraDevice?.stopPreview();
+            cameraDevice?.release();
+            cameraDevice = null;
+        }
+    }
 }
