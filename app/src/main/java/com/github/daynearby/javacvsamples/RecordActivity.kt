@@ -14,6 +14,7 @@ import android.util.Log
 import android.view.Surface
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
 
 
 /**
@@ -33,6 +34,7 @@ public class RecordActivity : AppCompatActivity() {
     val mRequestCode: Int = 11
     var cameraDevice: Camera? = null
     var cameraView: CameraView? = null
+    var buttonContrl: Button? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,7 +44,17 @@ public class RecordActivity : AppCompatActivity() {
         }
         setContentView(R.layout.acty_record)
 
-        findViewById<View>(R.id.btn_ctrl).setOnClickListener { }
+        buttonContrl = findViewById<View>(R.id.btn_ctrl) as Button
+        buttonContrl!!.setOnClickListener {
+            if (cameraView!!.recording) {
+                cameraView?.stopRecording()
+                buttonContrl?.text = "开始"
+            } else {
+                cameraView?.startRecording()
+                buttonContrl?.text = "停止"
+
+            }
+        }
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
             getPermission()
         }
@@ -84,7 +96,7 @@ public class RecordActivity : AppCompatActivity() {
                     this.finish()
                 } else {
                     Log.d(TAG, "get permission success,${permissions.get(index)}")
-                    if (index == permissions.size) {
+                    if (index == permissions.size - 1) {
                         addTextureView()
                     }
                 }
